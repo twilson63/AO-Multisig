@@ -1,6 +1,6 @@
 # AO Multisig 
 
-A AO Program that allows for multiple parties to deposit tokens into a process in which the group and propose and approve transfers of those tokens.
+A AO Program that allows for multiple parties to deposit tokens into a process in which the group can propose and approve transfers of those tokens.
 
 ## Handlers
 
