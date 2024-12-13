@@ -1,0 +1,15 @@
+{
+  "type": "module",
+  "name": "blank2",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/twilson63/blank2.git",
+  "author": "Tom Wilson <tom@hyper.io>",
+  "license": "MIT",
+  "dependencies": {
+    "@permaweb/loco": "^0.0.12"
+  },
+  "scripts": {
+    "test": "node --test --experimental-wasm-memory64 test/*.test.js"
+  }
+}
