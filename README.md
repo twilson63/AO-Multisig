@@ -47,7 +47,7 @@ Send({
 
 ### Proposal
 
-Propose a transfer for the Multisig, a proposal requires a number of Owner approvals set by the threshold, for example, if you have 5 Owners, maybe you want a threshold of 3, which means any 3 owners can approve a transfer.
+Propose any AO Message you want to send, just place the "JSON" formated version of the message, then once approved it will be executed. For example, if you have 5 Owners, maybe you want a threshold of 3, which means any 3 owners can approve a transfer.
 
 Example:
 
@@ -56,9 +56,14 @@ JackCoin = "6poPdECzioaWeCSCf1YnZ9lkavQqaCmr3xywOWSEtm8"
 Send({
   Target = MyMultisig,
   Action = "Propose",
-  Token = JackCoin,
-  Quantity = "500", -- remember these need to be base units aka winstons or armstrongs
-  Recipient = "x7nvOYgVrPePV1siG3b3i7J0IWAmdiqBx3d_AxZlCqA"
+  ["Content-Type"] = "application/json",
+  Description = "Propose to transfer JackCoin to x7nvOYgVrPePV1siG3b3i7J0IWAmdiqBx3d_AxZlCqA",
+  Data = require('json').encode({
+    Target = JackCoin,
+    Action = "Transfer",
+    Quantity = "5000",
+    Recipient = "x7nvOYgVrPePV1siG3b3i7J0IWAmdiqBx3d_AxZlCqA"
+  })
 })
 ```
 
@@ -79,5 +84,21 @@ Send({
 When the approval threshold is met, the transfer will be executed.
 
 
+### Get Transactions
 
+Get the Transactions that were executed on the Multisig
+
+```lua
+Send({
+  Action = "GetTransactions"
+})
+```
+
+### Get Owners
+
+Get the List of owners for the Multisig
+
+```lua
+Send({Action = "GetOwners"})
+```
 

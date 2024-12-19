@@ -55,7 +55,7 @@ local function notifyOwners(action, payload)
     for owner in pairs(Multisig.Owners) do
         Send({
             Target = owner,
-            Data = json.encode(payload),
+            Data = payload,
             Tags = {
                 Action = action,
                 ["Process-Id"] = ao.id,
@@ -134,23 +134,20 @@ end)
 -- Expects: Recipient (address), Token (address), Quantity (number)
 Handlers.add("Propose", function(msg)
     assert(Multisig.Owners[msg.From], "Not an owner")
-    
-    local recipient = msg.Recipient
-    local token = msg.Token
-    local value = tonumber(msg.Quantity)
-    
+        
     -- Validate transaction parameters
-    assert(recipient and token and value, "Missing transaction parameters")
-    assert(isValidAddress(recipient), "Invalid target address")
-    assert(isValidAddress(token), "Invalid token address")
-    assert(calc.isGreaterThan(value, 0), "Value must be positive")
-    assert(calc.isGreaterThanOrEqual(Multisig.TokenBalances[token], value), "Insufficient balance")
+    assert(msg.Data.Action and msg.Data.Target, "Valid message is required!")
+    if msg.Data.Action == "Transfer" then
+      assert(msg.Data.Quantity and msg.Data.Recipient, "Transfer requires Quantity and Recipient")
+      assert(Utils.includes(msg.Data.Target, Utils.keys(Multisig.TokenBalances)), "Transfer should be valid Token")
+    end
+
+    local description = msg.Description or string.format("Proposal: %s to %s with '%s'", msg.Data.Action, msg.Data.Target, require('json').encode(msg.Data))
+    
     -- Create transaction with automatic approval from proposer
     local tx = {
         proposer = msg.From,
-        recipient = recipient,
-        token = token,
-        value = value,
+        description = description,
         data = msg.Data,
         approvals = { [msg.From] = true },
         approval_count = 1,
@@ -163,30 +160,23 @@ Handlers.add("Propose", function(msg)
     if Multisig.Settings.threshold == 1 then
         tx.state = "executed"
 
-        local notice = Send({
-            Target = tx.token, 
-            Action = "Transfer",
-            Recipient = recipient,
-            Quantity = tostring(value)
-        }).receive()
+        local notice = Send(tx.data).receive()
 
         if notice.Action == "Debit-Notice" then
             assert(notice.Quantity, "Missing Quantity tag")
-            Multisig.TokenBalances[tx.token] = calc.sub(Multisig.TokenBalances[tx.token], notice.Quantity)
+            Multisig.TokenBalances[notice.From] = calc.sub(Multisig.TokenBalances[notice.From], notice.Quantity)
 
             notifyOwners("Transaction-Executed", { 
                 tx_id = msg.Id,
-                token = token,
-                amount = notice.Quantity,
-                balance = Multisig.TokenBalances[token]
+                notice_id = notice.Id,
+                data = tx.data
             })
         end
     else
         notifyOwners("Transaction-Proposed", { 
             tx_id = msg.Id, 
             proposer = msg.From, 
-            token = token, 
-            value = value,
+            Data = msg.Data,
             needed = Multisig.Settings.threshold - 1
         })
     end
@@ -209,7 +199,7 @@ Handlers.add("Approve", function(msg)
     local tx = Multisig.Transactions[msg.TxId]
     assert(tx and tx.state == "pending", "Invalid or non-pending transaction")
     assert(not tx.approvals[msg.From], "Already approved")
-    assert(calc.isGreaterThanOrEqual(Multisig.TokenBalances[tx.token], tx.value), "Insufficient balance")
+    --assert(calc.isGreaterThanOrEqual(Multisig.TokenBalances[tx.token], tx.value), "Insufficient balance")
 
     -- Record approval
     tx.approvals[msg.From] = true
@@ -219,21 +209,13 @@ Handlers.add("Approve", function(msg)
     if tx.approval_count >= Multisig.Settings.threshold then
         tx.state = "executed"
  
-        local notice = Send({
-          Target = tx.token,
-          Action = "Transfer",
-          Recipient = tx.recipient,
-          Quantity = tostring(tx.value),
-          ["X-Transaction-Id"] = msg.Tags.TxId,
-          Data = "Transfer " .. tostring(tx.value) .. " to " .. tx.token
-        }).receive()
+        local notice = Send(tx.data).receive()
         if notice.Action == "Debit-Notice" then
-            Multisig.TokenBalances[tx.token] = calc.sub(Multisig.TokenBalances[tx.token], notice.Quantity)
+            Multisig.TokenBalances[notice.From] = calc.sub(Multisig.TokenBalances[notice.From], notice.Quantity)
             notifyOwners("Transaction-Executed", { 
                 tx_id = msg.Tags.TxId,
-                token = tx.token,
-                amount = tx.value,
-                balance = Multisig.TokenBalances[tx.token]
+                notice_id = notice.Id,
+                data = tx.data
             })
         end
     else

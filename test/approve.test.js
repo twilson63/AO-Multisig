@@ -23,9 +23,13 @@ test("Approve", async () => {
   const proposeResult = await aos.send({
     Action: "Propose",
     Owner: "vh-NTHVvlKZqRxc8LyyTNok65yQ55a_PJ1zWLb9G2JI",
-    Token: "6poPdECzioaWeCSCf1YnZ9lkavQqaCmr3xywOWSEtm8",
-    Quantity: "500",
-    Recipient: "x7nvOYgVrPePV1siG3b3i7J0IWAmdiqBx3d_AxZlCqA"
+    "Content-Type": "application/json",
+    Data: JSON.stringify({
+      Target: "6poPdECzioaWeCSCf1YnZ9lkavQqaCmr3xywOWSEtm8",
+      Action: "Transfer",
+      Quantity: "500",
+      Recipient: "x7nvOYgVrPePV1siG3b3i7J0IWAmdiqBx3d_AxZlCqA"
+    })
   })
   const txId = JSON.parse(proposeResult.Messages[0].Data)["tx_id"]
   const result = await aos.send({
@@ -50,7 +54,7 @@ test("Approve", async () => {
   })
   // handle Debit-Notice
   //console.log(noticeResult)
-  assert.equal(JSON.parse(noticeResult.Messages[0].Data).balance, "500")
+  assert.equal(JSON.parse(noticeResult.Messages[0].Data).data?.Quantity, "500")
 
 })
 
